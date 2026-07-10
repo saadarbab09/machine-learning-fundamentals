@@ -19,13 +19,17 @@ df['class'] = (df['class'] == 'g').astype(int)
 
 
 # CREATING HISTOGRAMS FOR EACH FEATURE
-for label in columns[:-1]:
-    plt.figure()
-    plt.hist(df[df['class']==1][label], color = 'blue', alpha = 0.7, label = 'gamma', density = True)
-    plt.hist(df[df['class']==0][label], color = 'red', alpha = 0.7, label = 'hadron', density = True)
-    plt.title(label)
-    plt.ylabel('Density')
-    plt.legend()
+SHOW_HISTOGRAMS = False
+
+if SHOW_HISTOGRAMS:
+
+    for label in columns[:-1]:
+        plt.figure()
+        plt.hist(df[df['class']==1][label], color = 'blue', alpha = 0.7, label = 'gamma', density = True)
+        plt.hist(df[df['class']==0][label], color = 'red', alpha = 0.7, label = 'hadron', density = True)
+        plt.title(label)
+        plt.ylabel('Density')
+        plt.legend()
 
 
 #PREPROCESSING DATASET
@@ -237,23 +241,28 @@ y_predicted_svm = svm_model.predict(X_test) #predict the class labels for the te
 
 
 #***** (4) NEURAL NETWORK FOR CLASSIFICATION *****
+
 # this model uses multiple layers of interconnected nodes to learn complex patterns in the data.
 # it uses activation functions to remove linearity. sigmoid, relu, tanh are some of the activation functions.
 # and uses gradient descent backpropagation to update weights for adjusting the model to minimize the loss function.
 # we will use the tesorflow library to implement this model.
 
 #IMPLEMENTATION:
+## OUR FIRST NN (BASIC PARAMETERS)
 # import tensorflow as tf
-nn_model = tf.keras.Sequential([
-    tf.keras.Input(shape=(10,)),
-    tf.keras.layers.Dense(32, activation='relu'),# start with 32 n layer , define activation func and tell input shape number of features in the input data. 
-    tf.keras.layers.Dense(32, activation='relu'), # second layer with 32n
-    tf.keras.layers.Dense(1, activation='sigmoid') # condense it to 1 node , with sigmoid for classification.
+BASIC_NN = False
+if BASIC_NN:
 
-])
+    nn_model = tf.keras.Sequential([
+        tf.keras.Input(shape=(10,)),
+        tf.keras.layers.Dense(32, activation='relu'),# start with 32 n layer , define activation func and tell input shape number of features in the input data. 
+        tf.keras.layers.Dense(32, activation='relu'), # second layer with 32n
+        tf.keras.layers.Dense(1, activation='sigmoid') # condense it to 1 node , with sigmoid for classification.
+
+    ])
 # to configure the model we use .compile(), which tells how to:
 # update weights, measure errors, what performance metric to report  
-nn_model.compile(optimizer = tf.keras.optimizers.Adam(0.001), loss = 'binary_crossentropy', metrics = ['accuracy'])
+    nn_model.compile(optimizer = tf.keras.optimizers.Adam(0.001), loss = 'binary_crossentropy', metrics = ['accuracy'])
 #optimizer is the algorithm that updates the weights during backpropogation, learning rate alpha = 0.001
 #(a smarter version of gradient descent that auto adjusts and updates )
 # loss = 'binarycrossentropy' is a loss function to model loss 
@@ -279,19 +288,135 @@ def plot_accuracy(history):
     plt.legend()
     plt.grid(True)
     plt.show()   
+# plotting loss and accuracy side by side :
+# 
+def plot_history(history):
+    # Create a new figure with 1 row and 2 columns
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
+    # ----- Loss -----
+    ax1.plot(history.history['loss'], label='loss')
+    ax1.plot(history.history['val_loss'], label='val_loss')
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Binary Crossentropy')
+    ax1.set_title('Loss')
+    ax1.legend()
+    ax1.grid(True)
+
+    # ----- Accuracy -----
+    ax2.plot(history.history['accuracy'], label='accuracy')
+    ax2.plot(history.history['val_accuracy'], label='val_accuracy')
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('Accuracy')
+    ax2.set_title('Accuracy')
+    ax2.legend()
+    ax2.grid(True)
+
+    plt.tight_layout()
+    plt.show()    
 
 
 ### TRAINING THE MODEL ###
-history = nn_model.fit(
-    X_train,
-    y_train,
-    epochs=100,
-    batch_size=32,
-    validation_split=0.2,
-    verbose=1
-) # bathsize means intead of taking all the sample togoether take in batches of 32 
+if BASIC_NN:
+    history = nn_model.fit(
+        X_train,
+        y_train,
+        epochs=100,
+        batch_size=32,
+        validation_split=0.2,
+        verbose=1
+    )#nn_model.fit trains the model , and just returns ONE OBEJECT that is history, which stores:
+#     loss': [...],
+#     'accuracy': [...],
+#     'val_loss': [...],
+#     'val_accuracy': [...]
+# bathsize means intead of taking all the sample togoether take in batches of 32 
     # Training is done in batches of 32 samples. After each batch, the model makes predictions,
 # computes the loss, performs backpropagation, and updates the weights.
 # This continues until all training samples have been processed once, which completes one epoch.-    
-plot_loss(history)
-plot_accuracy(history)
+# plot_loss(history) # look at plot loss (1) /plots for neural network performance 
+# plot_accuracy(history)# look at plot (1) /plots accuracy for neural network performance
+# 
+# ##### now we need to see by adjusting hyperparameters which ones give the highest performance
+# so we do a GRID SEARCH: we test different parameters to see which one will give best.
+
+#####   GRID SEARCH  #####
+def train_model(X_train, y_train, num_nodes, dropout_prob, lr, batch_size, epochs):
+    nn_model = tf.keras.Sequential([
+            tf.keras.Input(shape=(10,)),
+            tf.keras.layers.Dense(num_nodes, activation='relu'),# start with 32 n layer , define activation func and tell input shape number of features in the input data. 
+            tf.keras.layers.Dropout(dropout_prob),# randomly slect nodes dont train them to reduce overfitting 
+            tf.keras.layers.Dense(num_nodes, activation='relu'), # second layer with 32n
+            tf.keras.layers.Dropout(dropout_prob),
+            tf.keras.layers.Dense(1, activation='sigmoid') # condense it to 1 node , with sigmoid for classification.
+
+        ])
+    nn_model.compile(optimizer = tf.keras.optimizers.Adam(lr), loss = 'binary_crossentropy', metrics = ['accuracy'])
+    history = nn_model.fit(
+        X_train,
+        y_train,
+        epochs=epochs,
+        batch_size=batch_size,
+        validation_split=0.2,
+        verbose=1
+    )
+    return nn_model, history
+# implementting grid search 
+grid_search = False
+if grid_search:
+    least_val_loss = float('inf')
+    least_loss_model = None
+    epochs = 100
+    best_params = None
+    best_history = None
+    for num_nodes in [16, 32, 64]:
+        for dropout_prob in [0, 0.2]:
+            for lr in [0.01, 0.005, 0.001]:
+                for batch_size in [32, 64, 128]:
+                    print(f"{num_nodes} nodes, dropout {dropout_prob}, lr {lr}, batch size {batch_size}")
+                    #train models returns model and history 
+                    model, history = train_model(X_train, y_train, num_nodes, dropout_prob, lr, batch_size, epochs)
+                    #plot_history(history)
+                    val_loss, val_accuracy = model.evaluate(X_valid, y_valid)# check each model with new data(valid)
+                    if val_loss < least_val_loss:
+                        least_val_loss = val_loss
+                        least_loss_model = model
+                        best_history = history
+                        best_params = (num_nodes, dropout_prob, lr, batch_size)
+    print(f"Best model: {best_params[0]} nodes, dropout={best_params[1]}, learning rate={best_params[2]}, batch size={best_params[3]}")
+    print(f"Lowest validation loss: {least_val_loss:.4f}")
+# grid search results :
+# Best model: 64 nodes, dropout=0.2, learning rate=0.001, batch size=64
+# Lowest validation loss: 0.3045
+# accuracy : 0.88
+
+#plot for grid search result(best params, best history):
+# best_model, best_history = train_model(
+#     X_train,
+#     y_train,
+#     num_nodes=64,
+#     dropout_prob=0.2,
+#     lr=0.001,
+#     batch_size=64,
+#     epochs=100
+# )
+
+# plot_history(best_history)# LLOK AT PNG IN PLOTS FOR NN(GRID SEARCH)
+
+
+#   ******CLASSIFIACATION REPORT FOR LEAST_LOSS MODEL:
+# y_predicted_nn = best_model.predict(X_test)
+# y_predicted_nn = (y_predicted_nn > 0.5).astype(int).reshape(-1,)
+# print(classification_report(y_test, y_predicted_nn))
+
+
+##### NN (AFTER GRID SEARCH) CLASSIFICATION REPORT:
+
+#               precision    recall  f1-score   support
+
+#            0       0.90      0.73      0.81      1370
+#            1       0.86      0.96      0.91      2434
+
+#     accuracy                           0.87      3804
+#    macro avg       0.88      0.84      0.86      3804
+# weighted avg       0.88      0.87      0.87      3804
